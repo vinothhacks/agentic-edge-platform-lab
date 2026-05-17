@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
@@ -32,7 +32,7 @@ def test_operation_state_transitions():
         session.commit()
 
         op.state = OperationState.SUCCEEDED
-        op.completed_at = datetime.now(timezone.utc)
+        op.completed_at = datetime.now(UTC)
         session.add(op)
         session.commit()
 
