@@ -1,0 +1,1 @@
+Agentic Edge Platform Lab is a hands-on Python project that teaches how internal developer platforms work.
