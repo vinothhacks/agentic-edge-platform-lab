@@ -10,10 +10,12 @@ from apps.broker.models.service import (
     ProvisioningOperation,
     ServiceInstance,
 )
+from apps.broker.services.config_renderer import ConfigRenderer
 
 
 async def run_worker():
     print("Worker started (in-memory + DB polling mode)")
+    renderer = ConfigRenderer()
     while True:
         with Session(engine) as session:
             pending_ops = session.exec(
@@ -32,24 +34,34 @@ async def run_worker():
                         ServiceInstance.instance_id == op.instance_id
                     )
                 ).first()
-                if not svc or "localhost" not in svc.domain:
+                if not svc:
                     op.state = OperationState.FAILED
-                    op.error_message = "Invalid domain or upstream unreachable (simulated)"
+                    op.error_message = "Service instance not found"
+                elif "localhost" not in svc.domain:
+                    op.state = OperationState.FAILED
+                    op.error_message = "Invalid domain (must end in .localhost in this lab)"
                 else:
                     op.state = OperationState.RENDERING
-                    op.description = "Rendering proxy config..."
+                    op.description = "Rendering Envoy config..."
                     session.add(op)
                     session.commit()
 
-                    op.state = OperationState.SUCCEEDED
-                    op.description = "Route provisioned successfully"
-                    op.completed_at = datetime.now(UTC)
+                    result = renderer.render(svc)
+                    if not result.success:
+                        op.state = OperationState.FAILED
+                        op.error_message = f"Render failed: {result.error}"
+                    else:
+                        op.state = OperationState.SUCCEEDED
+                        op.description = (
+                            f"Route provisioned; config at {result.config_path}"
+                        )
+                        op.completed_at = datetime.now(UTC)
 
                 session.add(op)
                 session.commit()
                 print(f"Operation {op.operation_id} -> {op.state}")
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
 
 if __name__ == "__main__":

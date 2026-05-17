@@ -24,6 +24,10 @@ dependencies = [
 [project.scripts]
 platformctl = "platformctl.main:app"
 
+[tool.setuptools.packages.find]
+include = ["apps*", "platformctl*"]
+exclude = ["generated*", "tests*", "docs*", ".venv*"]
+
 [tool.ruff]
 line-length = 100
 
